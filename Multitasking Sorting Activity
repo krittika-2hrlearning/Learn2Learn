@@ -1,0 +1,528 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Shuffle, Trophy, Timer, ArrowRight } from 'lucide-react';
+
+const MultitaskingSortingGame = () => {
+  // Game states
+  const [gameState, setGameState] = useState('intro'); // intro, round1, round2, round3, results
+  const [round1Time, setRound1Time] = useState(null);
+  const [round2Time, setRound2Time] = useState(null);
+  const [round3Time, setRound3Time] = useState(null);
+  const [timer, setTimer] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  
+  // Game data
+  const [numbers, setNumbers] = useState([]);
+  const [letters, setLetters] = useState([]);
+  const [sortedNumbers, setSortedNumbers] = useState([]);
+  const [sortedLetters, setSortedLetters] = useState([]);
+  const [currentTurn, setCurrentTurn] = useState('number'); // 'number' or 'letter'
+  
+  // Refs
+  const timerRef = useRef(null);
+  
+  // Initialize game data
+  useEffect(() => {
+    resetGame();
+  }, []);
+  
+  // Timer effect
+  useEffect(() => {
+    if (isTimerRunning) {
+      timerRef.current = setInterval(() => {
+        setTimer(prevTime => prevTime + 0.1);
+      }, 100);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    
+    return () => clearInterval(timerRef.current);
+  }, [isTimerRunning]);
+  
+  // Generate shuffled arrays
+  const resetGame = () => {
+    // Create arrays 1-20 and A-T
+    const nums = Array.from({ length: 20 }, (_, i) => i + 1);
+    const chars = Array.from({ length: 20 }, (_, i) => String.fromCharCode(65 + i));
+    
+    // Shuffle arrays
+    shuffleArray(nums);
+    shuffleArray(chars);
+    
+    setNumbers(nums);
+    setLetters(chars);
+    setSortedNumbers([]);
+    setSortedLetters([]);
+    setTimer(0);
+    setCurrentTurn('number');
+  };
+  
+  // Fisher-Yates shuffle algorithm
+  const shuffleArray = (array) => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  };
+  
+  // Start timer for a round
+  const startRound = () => {
+    resetGame();
+    setIsTimerRunning(true);
+  };
+  
+  // End the current round
+  const endRound = () => {
+    setIsTimerRunning(false);
+    
+    if (gameState === 'round1') {
+      setRound1Time(timer.toFixed(1));
+      setTimeout(() => setGameState('round1-complete'), 300);
+    } else if (gameState === 'round2') {
+      setRound2Time(timer.toFixed(1));
+      setTimeout(() => setGameState('round2-complete'), 300);
+    } else if (gameState === 'round3') {
+      setRound3Time(timer.toFixed(1));
+      setTimeout(() => setGameState('results'), 300);
+    }
+  };
+  
+  // Check if a round is complete
+  useEffect(() => {
+    if (gameState === 'round1' && sortedNumbers.length === 20) {
+      endRound();
+    } else if (gameState === 'round2' && sortedLetters.length === 20) {
+      endRound();
+    } else if (gameState === 'round3' && sortedNumbers.length === 20 && sortedLetters.length === 20) {
+      endRound();
+    }
+  }, [sortedNumbers.length, sortedLetters.length]);
+  
+  // Handle number selection
+  const handleNumberClick = (num) => {
+    const expectedNextNumber = sortedNumbers.length + 1;
+    
+    if (num === expectedNextNumber) {
+      const updatedNumbers = [...numbers];
+      const index = updatedNumbers.indexOf(num);
+      updatedNumbers.splice(index, 1);
+      setNumbers(updatedNumbers);
+      setSortedNumbers(prev => [...prev, num]);
+      
+      // In round 3, switch turns
+      if (gameState === 'round3') {
+        setCurrentTurn('letter');
+      }
+    }
+  };
+  
+  // Handle letter selection
+  const handleLetterClick = (letter) => {
+    const alphabetIndex = letter.charCodeAt(0) - 65;
+    const expectedNextIndex = sortedLetters.length;
+    
+    if (alphabetIndex === expectedNextIndex) {
+      const updatedLetters = [...letters];
+      const index = updatedLetters.indexOf(letter);
+      updatedLetters.splice(index, 1);
+      setLetters(updatedLetters);
+      setSortedLetters(prev => [...prev, letter]);
+      
+      // In round 3, switch turns
+      if (gameState === 'round3') {
+        setCurrentTurn('number');
+      }
+    }
+  };
+  
+  // Render intro screen
+  const renderIntro = () => (
+    <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+      <h1 className="text-4xl font-bold mb-6 text-blue-600">Brain Challenge!</h1>
+      <div className="mb-8 bg-blue-100 p-4 rounded-lg shadow-md max-w-md">
+        <p className="text-xl mb-4">Can you beat the Brain Challenge?</p>
+        <p className="mb-4">This game will test your sorting skills...</p>
+        <p className="font-bold">But there might be a twist!</p>
+      </div>
+      <button
+        onClick={() => {
+          setGameState('round1-info');
+        }}
+        className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium text-lg flex items-center"
+      >
+        Start Challenge <ArrowRight size={20} className="ml-2" />
+      </button>
+    </div>
+  );
+  
+  // Render round 1 info
+  const renderRound1Info = () => (
+    <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+      <h2 className="text-3xl font-bold mb-6 text-blue-600">Level 1: Number Sort</h2>
+      <div className="mb-8 bg-blue-100 p-4 rounded-lg shadow-md max-w-md">
+        <p className="text-xl mb-4">Click the numbers in order from 1 to 20</p>
+        <p>Try to be as fast as you can!</p>
+      </div>
+      <button
+        onClick={() => {
+          setGameState('round1');
+          startRound();
+        }}
+        className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium text-lg flex items-center"
+      >
+        Begin <Timer size={20} className="ml-2" />
+      </button>
+    </div>
+  );
+  
+  // Render round 2 info
+  const renderRound2Info = () => (
+    <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+      <h2 className="text-3xl font-bold mb-6 text-purple-600">Level 2: Letter Sort</h2>
+      <div className="mb-8 bg-purple-100 p-4 rounded-lg shadow-md max-w-md">
+        <p className="text-xl mb-4">Click the letters in alphabetical order from A to T</p>
+        <p>Try to beat your previous time!</p>
+      </div>
+      <button
+        onClick={() => {
+          setGameState('round2');
+          startRound();
+        }}
+        className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium text-lg flex items-center"
+      >
+        Begin <Timer size={20} className="ml-2" />
+      </button>
+    </div>
+  );
+  
+  // Render round 3 info
+  const renderRound3Info = () => (
+    <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+      <h2 className="text-3xl font-bold mb-6 text-red-600">Final Level: Switch Challenge!</h2>
+      <div className="mb-8 bg-red-100 p-4 rounded-lg shadow-md max-w-md">
+        <p className="text-xl mb-4">Now for the twist!</p>
+        <p className="mb-4">Click numbers and letters in this pattern:</p>
+        <p className="font-bold text-lg mb-4">1, A, 2, B, 3, C...</p>
+        <p>Keep switching back and forth until you finish</p>
+      </div>
+      <button
+        onClick={() => {
+          setGameState('round3');
+          startRound();
+        }}
+        className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium text-lg flex items-center"
+      >
+        Begin Final Challenge <Timer size={20} className="ml-2" />
+      </button>
+    </div>
+  );
+  
+  // Render round 1 complete
+  const renderRound1Complete = () => (
+    <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+      <div className="mb-4">
+        <Trophy size={60} className="text-yellow-500 mx-auto mb-2" />
+        <h2 className="text-3xl font-bold mb-2 text-blue-600">Level 1 Complete!</h2>
+      </div>
+      <div className="mb-8 bg-blue-100 p-4 rounded-lg shadow-md max-w-md">
+        <p className="text-xl mb-2">Your Time:</p>
+        <p className="text-4xl font-bold mb-4">{round1Time} seconds</p>
+        <p>Great job sorting the numbers!</p>
+      </div>
+      <button
+        onClick={() => {
+          setGameState('round2-info');
+        }}
+        className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-medium text-lg flex items-center"
+      >
+        Next Level <ArrowRight size={20} className="ml-2" />
+      </button>
+    </div>
+  );
+  
+  // Render round 2 complete
+  const renderRound2Complete = () => (
+    <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+      <div className="mb-4">
+        <Trophy size={60} className="text-yellow-500 mx-auto mb-2" />
+        <h2 className="text-3xl font-bold mb-2 text-purple-600">Level 2 Complete!</h2>
+      </div>
+      <div className="mb-8 bg-purple-100 p-4 rounded-lg shadow-md max-w-md">
+        <p className="text-xl mb-2">Your Time:</p>
+        <p className="text-4xl font-bold mb-4">{round2Time} seconds</p>
+        <p>Excellent work sorting the letters!</p>
+      </div>
+      <button
+        onClick={() => {
+          setGameState('round3-info');
+        }}
+        className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium text-lg flex items-center"
+      >
+        Final Challenge <ArrowRight size={20} className="ml-2" />
+      </button>
+    </div>
+  );
+  
+  // Render round 1 game
+  const renderRound1Game = () => (
+    <div className="p-4 max-w-2xl mx-auto">
+      <div className="text-center mb-4">
+        <h2 className="text-xl font-bold text-blue-600">Level 1: Number Sort</h2>
+        <p className="mb-2">Click the numbers in order from 1 to 20</p>
+        <div className="text-2xl font-mono font-bold text-blue-700">
+          Time: {timer.toFixed(1)}s
+        </div>
+      </div>
+      
+      <div className="p-4 border-2 rounded-lg border-blue-500">
+        <h3 className="text-lg font-semibold mb-2 text-center">Click on {sortedNumbers.length + 1} next</h3>
+        <div className="flex flex-wrap gap-2 justify-center mb-4">
+          {numbers.map((num) => (
+            <button
+              key={`num-${num}`}
+              onClick={() => handleNumberClick(num)}
+              className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 text-lg"
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-1 min-h-10 justify-center">
+          {sortedNumbers.map((num) => (
+            <span key={`sorted-${num}`} className="w-10 h-10 flex items-center justify-center bg-blue-200 rounded-full text-lg">
+              {num}
+            </span>
+          ))}
+        </div>
+      </div>
+      
+      <div className="text-center mt-4">
+        <button 
+          onClick={resetGame}
+          className="flex items-center mx-auto px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+        >
+          <Shuffle size={16} className="mr-2" /> Shuffle
+        </button>
+      </div>
+    </div>
+  );
+  
+  // Render round 2 game
+  const renderRound2Game = () => (
+    <div className="p-4 max-w-2xl mx-auto">
+      <div className="text-center mb-4">
+        <h2 className="text-xl font-bold text-purple-600">Level 2: Letter Sort</h2>
+        <p className="mb-2">Click the letters in alphabetical order from A to T</p>
+        <div className="text-2xl font-mono font-bold text-purple-700">
+          Time: {timer.toFixed(1)}s
+        </div>
+      </div>
+      
+      <div className="p-4 border-2 rounded-lg border-purple-500">
+        <h3 className="text-lg font-semibold mb-2 text-center">Click on {String.fromCharCode(65 + sortedLetters.length)} next</h3>
+        <div className="flex flex-wrap gap-2 justify-center mb-4">
+          {letters.map((letter) => (
+            <button
+              key={`letter-${letter}`}
+              onClick={() => handleLetterClick(letter)}
+              className="w-12 h-12 flex items-center justify-center rounded-full bg-purple-500 text-white hover:bg-purple-600 text-lg"
+            >
+              {letter}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-1 min-h-10 justify-center">
+          {sortedLetters.map((letter) => (
+            <span key={`sorted-${letter}`} className="w-10 h-10 flex items-center justify-center bg-purple-200 rounded-full text-lg">
+              {letter}
+            </span>
+          ))}
+        </div>
+      </div>
+      
+      <div className="text-center mt-4">
+        <button 
+          onClick={resetGame}
+          className="flex items-center mx-auto px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+        >
+          <Shuffle size={16} className="mr-2" /> Shuffle
+        </button>
+      </div>
+    </div>
+  );
+  
+  // Render round 3 game
+  const renderRound3Game = () => (
+    <div className="p-4 max-w-3xl mx-auto">
+      <div className="text-center mb-4">
+        <h2 className="text-xl font-bold text-red-600">Final Level: Switch Challenge!</h2>
+        <p className="mb-2">Alternate: 1, A, 2, B, 3, C...</p>
+        <div className="text-2xl font-mono font-bold text-red-700">
+          Time: {timer.toFixed(1)}s
+        </div>
+      </div>
+      
+      <div className="text-center mb-4">
+        <div className="text-lg font-bold bg-yellow-100 p-2 rounded-lg inline-block">
+          Next: Click on {currentTurn === 'number' ? 
+            `number ${sortedNumbers.length + 1}` : 
+            `letter ${String.fromCharCode(65 + sortedLetters.length)}`}
+        </div>
+      </div>
+      
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className={`p-4 border-2 rounded-lg flex-1 ${currentTurn === 'number' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}>
+          <h3 className="text-lg font-semibold mb-2 text-center">Numbers</h3>
+          <div className="flex flex-wrap gap-2 justify-center mb-4">
+            {numbers.map((num) => (
+              <button
+                key={`num-${num}`}
+                onClick={() => currentTurn === 'number' && handleNumberClick(num)}
+                className={`w-12 h-12 flex items-center justify-center rounded-full text-lg
+                  ${currentTurn === 'number' ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                disabled={currentTurn !== 'number'}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-1 min-h-10 justify-center">
+            {sortedNumbers.map((num) => (
+              <span key={`sorted-${num}`} className="w-10 h-10 flex items-center justify-center bg-blue-200 rounded-full text-lg">
+                {num}
+              </span>
+            ))}
+          </div>
+        </div>
+        
+        <div className={`p-4 border-2 rounded-lg flex-1 ${currentTurn === 'letter' ? 'border-purple-500 bg-purple-50' : 'border-gray-300'}`}>
+          <h3 className="text-lg font-semibold mb-2 text-center">Letters</h3>
+          <div className="flex flex-wrap gap-2 justify-center mb-4">
+            {letters.map((letter) => (
+              <button
+                key={`letter-${letter}`}
+                onClick={() => currentTurn === 'letter' && handleLetterClick(letter)}
+                className={`w-12 h-12 flex items-center justify-center rounded-full text-lg
+                  ${currentTurn === 'letter' ? 'bg-purple-500 text-white hover:bg-purple-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                disabled={currentTurn !== 'letter'}
+              >
+                {letter}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-1 min-h-10 justify-center">
+            {sortedLetters.map((letter) => (
+              <span key={`sorted-${letter}`} className="w-10 h-10 flex items-center justify-center bg-purple-200 rounded-full text-lg">
+                {letter}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      <div className="text-center mt-4">
+        <button 
+          onClick={resetGame}
+          className="flex items-center mx-auto px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+        >
+          <Shuffle size={16} className="mr-2" /> Shuffle
+        </button>
+      </div>
+    </div>
+  );
+  
+  // Render results
+  const renderResults = () => {
+    const round1TimeNum = parseFloat(round1Time);
+    const round2TimeNum = parseFloat(round2Time);
+    const round3TimeNum = parseFloat(round3Time);
+    const combinedTime = round1TimeNum + round2TimeNum;
+    const difference = round3TimeNum - combinedTime;
+    const percentSlower = ((difference / combinedTime) * 100).toFixed(1);
+    
+    return (
+      <div className="p-6 max-w-3xl mx-auto">
+        <div className="text-center mb-6">
+          <Trophy size={80} className="text-yellow-500 mx-auto mb-2" />
+          <h2 className="text-3xl font-bold text-red-600">Brain Challenge Complete!</h2>
+          <p className="text-lg mt-2">You've discovered something amazing about your brain!</p>
+        </div>
+        
+        <div className="bg-blue-50 p-4 rounded-lg mb-6">
+          <h3 className="text-xl font-semibold mb-4 text-center">Your Times</h3>
+          
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="text-right font-semibold">Level 1 (Numbers):</div>
+            <div>{round1Time} seconds</div>
+            
+            <div className="text-right font-semibold">Level 2 (Letters):</div>
+            <div>{round2Time} seconds</div>
+            
+            <div className="text-right font-semibold">Total separate time:</div>
+            <div>{combinedTime.toFixed(1)} seconds</div>
+            
+            <div className="text-right font-semibold col-span-2 mt-2 text-lg bg-yellow-100 p-1 rounded">
+              Final Level (Switching):
+            </div>
+            <div className="col-span-2 text-center font-bold text-xl mb-2">
+              {round3Time} seconds
+            </div>
+          </div>
+          
+          <div className="text-center font-bold text-xl text-red-600 p-2 bg-red-100 rounded">
+            Switching made you {percentSlower}% slower!
+          </div>
+        </div>
+        
+        <div className="bg-green-50 p-4 rounded-lg mb-6">
+          <h3 className="text-xl font-semibold mb-4 text-center">Brain Discovery!</h3>
+          
+          <p className="mb-4">When you switched between tasks, your brain needed extra time to "change gears" each time. That's why the final level took so much longer!</p>
+          
+          <div className="p-3 bg-yellow-100 rounded text-center">
+            <p className="font-semibold">What does this mean for learning?</p>
+            <p>When you try to do homework while watching videos or playing games, your brain keeps switching tasks, making everything take longer!</p>
+          </div>
+        </div>
+        
+        <div className="bg-blue-100 p-4 rounded-lg text-center">
+          <h3 className="text-xl font-semibold mb-2">Brain Power Tip:</h3>
+          <p className="text-lg font-bold">Focus on ONE task at a time for faster and better results!</p>
+        </div>
+        
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => {
+              resetGame();
+              setGameState('intro');
+              setRound1Time(null);
+              setRound2Time(null);
+              setRound3Time(null);
+            }}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+          >
+            Play Again
+          </button>
+        </div>
+      </div>
+    );
+  };
+  
+  // Main render function
+  return (
+    <div className="font-sans bg-gray-50 min-h-screen">
+      {gameState === 'intro' && renderIntro()}
+      {gameState === 'round1-info' && renderRound1Info()}
+      {gameState === 'round2-info' && renderRound2Info()}
+      {gameState === 'round3-info' && renderRound3Info()}
+      {gameState === 'round1' && renderRound1Game()}
+      {gameState === 'round2' && renderRound2Game()}
+      {gameState === 'round3' && renderRound3Game()}
+      {gameState === 'round1-complete' && renderRound1Complete()}
+      {gameState === 'round2-complete' && renderRound2Complete()}
+      {gameState === 'results' && renderResults()}
+    </div>
+  );
+};
+
+export default MultitaskingSortingGame;
